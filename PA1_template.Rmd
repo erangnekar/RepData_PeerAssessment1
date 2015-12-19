@@ -1,0 +1,104 @@
+---
+title: "PA1_template"
+output : html_document
+---
+
+Load data
+
+```{r, echo=TRUE}
+data <- read.csv(file ="activity.csv",header = TRUE, sep = ",")
+```
+
+# Explore and clean up data
+
+```{r, echo=TRUE}
+head(data)
+clnData <- na.omit(data)
+head(clnData)
+```
+
+#Calculate the mean total number of steps taken per day
+##First calculate total steps per day
+```{r, echo=TRUE}
+totPerDay <- aggregate(steps ~ date, clnData, sum)
+head(totPerDay)
+```
+
+##Create histogram of steps per day
+```{r, echo=TRUE}
+hist(totPerDay$steps, main = "Total Steps taken per day", xlab = "Steps per day", col = "blue", breaks = 20)
+```
+
+##Calculate mean and median steps per day
+```{r, echo=TRUE}
+mean(totPerDay$steps)
+median(totPerDay$steps)
+```
+
+#Calculate the average daily activity pattern
+##Create a time series plot
+```{r, echo=TRUE}
+avgPerInt <- aggregate (steps ~ interval, clnData, mean)
+head(avgPerInt)
+plot (avgPerInt, type = "l", col = "red")
+```
+
+##Find which interval has the highest steps on average across all days
+```{r, echo=TRUE}
+avgPerInt[which(grepl(max(avgPerInt$steps), avgPerInt$steps)), ]
+```
+
+#Imputing missing values
+##calculate number of rows that contain NAs
+```{r, echo=TRUE}
+sum(is.na(data$steps))
+```
+
+##Strategy to fill in missing values
+Replace the missing values with the mean steps across days for each interval (see Calculate Average Daily Pattern)
+
+## Fill in missing values
+```{r, echo=TRUE}
+newdata <- data
+for (i in 1:nrow(newdata)) {
+    if (is.na(newdata$steps[i])) {
+        newdata$steps[i] <-  avgPerInt$steps[which(grepl(newdata$interval[i], avgPerInt$interval))]
+    }
+}
+```
+
+## Create a new histogram with the updated values and calculate mean and median
+```{r, echo=TRUE}
+totPerDay2 <- aggregate(steps ~ date, newdata, sum)
+head(totPerDay2)
+hist(totPerDay2$steps, main = "Total Steps taken per day", xlab = "Steps per day", col = "blue", breaks = 20)
+mean(totPerDay2$steps)
+median(totPerDay2$steps)
+```
+    By replacing the missing values with the averages, the median increased to match the mean.
+
+#Calculate differences in activity patterns between weekdays and weekends
+##Add a column to distingush between Weekends and Weekdays
+```{r, echo=TRUE}
+WkData <- newdata
+WkData$WkDay <- (weekdays(as.Date(WkData$date), abbreviate = FALSE))
+
+for (i in 1:nrow(WkData)) {
+    if (WkData$WkDay[i] %in% c("Saturday", "Sunday")) {
+        WkData$WkDay[i] <-  "Weekend"
+    }else
+        WkData$WkDay[i] <- "Weekday"
+}
+```
+
+##Create a timeseries plot to show average steps per interval grouped by Weekend/Weekday
+```{r, echo=TRUE}
+library(lattice)
+
+WkAvgPerInt  <- aggregate(WkData$steps, list(as.numeric(WkData$interval),WkData$WkDay),FUN = "mean")
+names(WkAvgPerInt) <- c("interval","WkDay", "steps")
+
+xyplot(WkAvgPerInt$steps ~ WkAvgPerInt$interval | WkAvgPerInt$WkDay, 
+       layout = c(1, 2), type = "l", 
+       xlab = "Interval", ylab = "Avg steps")
+```
